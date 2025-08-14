@@ -25,6 +25,11 @@ st.markdown(
         border-radius: 10px;
         text-align: center;
         background-color: #ffffff;
+        color: #ff7f0e !important; /* Torna o texto laranja para melhor legibilidade */
+    }
+    .stMetric label,
+    .stMetric [data-testid="stMetricValue"] {
+        color: #ff7f0e !important;
     }
     .stMetric .st-ae { /* Ajusta o alinhamento do valor */
         justify-content: center;
