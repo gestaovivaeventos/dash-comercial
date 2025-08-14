@@ -76,10 +76,10 @@ def buscar_todos_os_dados():
     
     # --- PRÉ-PROCESSAMENTO DOS DADOS ---
     # Convertendo colunas importantes para os tipos corretos
-    df['dt_cadastro_fundo'] = pd.to_datetime(df['dt_cadastro_fundo'], errors='coerce')
+    df['dt_cadastro_integrante'] = pd.to_datetime(df['dt_cadastro_integrante'], errors='coerce')
     df['vl_plano'] = pd.to_numeric(df['vl_plano'], errors='coerce').fillna(0)
     # Cria uma coluna 'periodo' (Ano-Mês) para facilitar agregações mensais
-    df['periodo'] = df['dt_cadastro_fundo'].dt.to_period('M').astype(str)
+    df['periodo'] = df['dt_cadastro_integrante'].dt.to_period('M').astype(str)
 
     return df
 
