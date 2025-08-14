@@ -4,7 +4,7 @@ import pandas as pd
 
 # --- CONFIGURAÇÃO ---
 # Cole aqui a URL base da sua API FastAPI que já está funcionando na Vercel.
-API_URL = "https://api-adesoes-comercial.vercel.app" # <<< MUDE AQUI!
+API_URL = "https://api-adesoes-comercial.vercel.app/dados" # <<< MUDE AQUI!
 
 # --- FUNÇÃO PARA BUSCAR OS DADOS ---
 # Esta função usa a paginação para buscar todos os dados da sua API.
