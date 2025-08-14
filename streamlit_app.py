@@ -1,29 +1,38 @@
 import streamlit as st
 import requests
 import pandas as pd
+import numpy as np
+import plotly.express as px
 from datetime import datetime
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(layout="wide", page_title="Dashboard de Vendas")
 
 # --- ESTILO CUSTOMIZADO (CSS) ---
-# Injetamos um pouco de CSS para um visual mais limpo e profissional
-st.markdown("""
+# Injetamos um pouco de CSS para um visual mais claro e profissional
+st.markdown(
+    """
 <style>
+    body {
+        background-color: #f5f7fa;
+    }
     .block-container {
         padding-top: 2rem;
     }
     .stMetric {
-        border: 1px solid #2e3138;
+        border: 1px solid #d0d3d8;
         padding: 15px;
         border-radius: 10px;
         text-align: center;
+        background-color: #ffffff;
     }
     .stMetric .st-ae { /* Ajusta o alinhamento do valor */
         justify-content: center;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 
 # --- FUNÇÃO PARA BUSCAR OS DADOS (cacheada para performance) ---
@@ -80,30 +89,33 @@ st.markdown("---")
 st.sidebar.header("Filtros")
 
 if df_original is not None and not df_original.empty:
-    
-    # Filtro de Unidade (agora como selectbox/dropdown)
-    lista_unidades = ['Todas'] + sorted(df_original['nm_unidade'].unique())
+
+    # Filtro de Unidade
+    lista_unidades = ['Todas'] + sorted(df_original['nm_unidade'].dropna().unique())
     unidade_selecionada = st.sidebar.selectbox("Unidade", options=lista_unidades)
 
     # Filtro de Tipo de Cliente
-    lista_tipos_cliente = ['Todos'] + sorted(df_original['tipo_cliente'].unique())
+    lista_tipos_cliente = ['Todos'] + sorted(df_original['tipo_cliente'].dropna().unique())
     tipo_cliente_selecionado = st.sidebar.selectbox("Tipo de Cliente", options=lista_tipos_cliente)
 
-    # Filtro de Data
-    data_min = df_original['dt_cadastro_fundo'].min().date()
-    data_max = df_original['dt_cadastro_fundo'].max().date()
-    filtro_data = st.sidebar.date_input('Período de Cadastro', value=(data_min, data_max))
-    
-    # --- APLICAÇÃO DOS FILTROS ---
+    # Filtro de Ano
+    anos_disponiveis = ['Todos'] + sorted(df_original['dt_cadastro_fundo'].dt.year.dropna().unique())
+    ano_selecionado = st.sidebar.selectbox("Ano", options=anos_disponiveis)
+
+    # Aplica filtros iniciais
     df_filtrado = df_original.copy()
     if unidade_selecionada != 'Todas':
         df_filtrado = df_filtrado[df_filtrado['nm_unidade'] == unidade_selecionada]
     if tipo_cliente_selecionado != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['tipo_cliente'] == tipo_cliente_selecionado]
-    if len(filtro_data) == 2:
-        start_date = pd.to_datetime(filtro_data[0])
-        end_date = pd.to_datetime(filtro_data[1])
-        df_filtrado = df_filtrado[(df_filtrado['dt_cadastro_fundo'] >= start_date) & (df_filtrado['dt_cadastro_fundo'] <= end_date)]
+    if ano_selecionado != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['dt_cadastro_fundo'].dt.year == ano_selecionado]
+
+    # Filtro de Mês (dependente do Ano selecionado)
+    meses_disponiveis = ['Todos'] + sorted(df_filtrado['dt_cadastro_fundo'].dt.month.dropna().unique())
+    mes_selecionado = st.sidebar.selectbox("Mês", options=meses_disponiveis)
+    if mes_selecionado != 'Todos':
+        df_filtrado = df_filtrado[df_filtrado['dt_cadastro_fundo'].dt.month == mes_selecionado]
 
     # --- EXIBIÇÃO DO DASHBOARD PRINCIPAL ---
 
@@ -111,39 +123,99 @@ if df_original is not None and not df_original.empty:
     total_vvr = df_filtrado['vl_plano'].sum()
     num_adesoes = len(df_filtrado)
     ticket_medio = total_vvr / num_adesoes if num_adesoes > 0 else 0
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric(label="VVR Total (R$)", value=f"{total_vvr:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    col2.metric(label="Número de Adesões", value=f"{num_adesoes:,}".replace(",", "."))
-    col3.metric(label="Ticket Médio (R$)", value=f"{ticket_medio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    
+
+    adesoes_vendas = df_filtrado['tipo_cliente'].str.contains('venda', case=False, na=False).sum()
+    adesoes_pos_vendas = df_filtrado['tipo_cliente'].str.contains('pos', case=False, na=False).sum()
+
+    vendas_mensais_series = df_filtrado.groupby('periodo')['vl_plano'].sum().sort_index()
+    vendas_mensais_series.index = pd.to_datetime(vendas_mensais_series.index)
+    vendas_mensais_series = vendas_mensais_series.sort_index()
+    if len(vendas_mensais_series) >= 2:
+        x = np.arange(len(vendas_mensais_series))
+        y = vendas_mensais_series.values
+        coef = np.polyfit(x, y, 1)
+        previsao_proximo_mes = float(np.polyval(coef, len(vendas_mensais_series)))
+    else:
+        previsao_proximo_mes = float(vendas_mensais_series.iloc[-1]) if len(vendas_mensais_series) > 0 else 0.0
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric(
+        label="VVR Total (R$)",
+        value=f"{total_vvr:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+    )
+    col2.metric(
+        label="Adesões Vendas",
+        value=f"{adesoes_vendas:,}".replace(",", "."),
+    )
+    col3.metric(
+        label="Adesões Pós-Vendas",
+        value=f"{adesoes_pos_vendas:,}".replace(",", "."),
+    )
+    col4.metric(
+        label="Ticket Médio (R$)",
+        value=f"{ticket_medio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+    )
+    col5.metric(
+        label="Prev. Próx. Mês (R$)",
+        value=f"{previsao_proximo_mes:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+    )
+
     st.markdown("---")
 
-    # GRÁFICOS
+    # GRÁFICOS INTERATIVOS
     col_graf1, col_graf2 = st.columns(2)
-    
+
     with col_graf1:
-        st.subheader("VVR (Valor do Plano) por Mês")
-        vvr_por_mes = df_filtrado.groupby('periodo')['vl_plano'].sum().sort_index()
-        st.line_chart(vvr_por_mes)
-        
+        st.subheader("Volume de Vendas Mensal (R$)")
+        vendas_mensais_df = vendas_mensais_series.reset_index()
+        vendas_mensais_df.columns = ["periodo", "vl_plano"]
+        fig_mensal = px.line(
+            vendas_mensais_df,
+            x="periodo",
+            y="vl_plano",
+            markers=True,
+            labels={"periodo": "Período", "vl_plano": "Valor"},
+        )
+        st.plotly_chart(fig_mensal, use_container_width=True)
+
     with col_graf2:
-        st.subheader("Número de Adesões por Mês")
-        adesoes_por_mes = df_filtrado.groupby('periodo')['id_fundo'].count().sort_index()
-        st.line_chart(adesoes_por_mes, color="#ffaa00") # Cor diferente
+        st.subheader("Volume de Vendas Anual (R$)")
+        vendas_anuais = (
+            df_filtrado.groupby(df_filtrado['dt_cadastro_fundo'].dt.year)['vl_plano']
+            .sum()
+            .reset_index(name='vl_plano')
+        )
+        vendas_anuais.columns = ['Ano', 'vl_plano']
+        fig_anual = px.bar(
+            vendas_anuais,
+            x='Ano',
+            y='vl_plano',
+            labels={'Ano': 'Ano', 'vl_plano': 'Valor'},
+        )
+        st.plotly_chart(fig_anual, use_container_width=True)
 
     st.markdown("---")
 
     st.subheader("Adesões por Mês (Vendas vs Pós-Vendas)")
-    # IMPORTANTE: Aqui estamos usando a coluna 'tipo_cliente' para criar as pilhas.
-    # Se a coluna correta for outra, basta alterar a palavra 'tipo_cliente' abaixo.
-    adesoes_empilhadas = df_filtrado.groupby(['periodo', 'tipo_cliente'])['id_fundo'].count().unstack(fill_value=0)
-    st.bar_chart(adesoes_empilhadas)
+    adesoes_tipo = (
+        df_filtrado.groupby(['periodo', 'tipo_cliente'])['id_fundo']
+        .count()
+        .reset_index(name='adesoes')
+    )
+    fig_adesoes = px.bar(
+        adesoes_tipo,
+        x='periodo',
+        y='adesoes',
+        color='tipo_cliente',
+        barmode='stack',
+        labels={'periodo': 'Período', 'adesoes': 'Adesões', 'tipo_cliente': 'Tipo'},
+    )
+    st.plotly_chart(fig_adesoes, use_container_width=True)
 
     st.markdown("---")
-    
+
     st.subheader("Tabela de Dados Filtrados")
     st.dataframe(df_filtrado, use_container_width=True)
-    
+
 else:
     st.warning("Não foi possível carregar os dados. Verifique a API ou tente recarregar a página.")
