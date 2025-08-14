@@ -8,13 +8,14 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(layout="wide", page_title="Dashboard de Vendas")
 
+
 # --- ESTILO CUSTOMIZADO (CSS) ---
-# Injetamos um pouco de CSS para um visual mais claro e profissional
+# Tema mais claro com métricas em laranja
 st.markdown(
     """
 <style>
     body {
-        background-color: #f5f7fa;
+        background-color: #f0f2f6;
     }
     .block-container {
         padding-top: 2rem;
@@ -25,19 +26,30 @@ st.markdown(
         border-radius: 10px;
         text-align: center;
         background-color: #ffffff;
-        color: #ff7f0e !important; /* Torna o texto laranja para melhor legibilidade */
+        color: #ff7f0e !important;
     }
     .stMetric label,
     .stMetric [data-testid="stMetricValue"] {
         color: #ff7f0e !important;
     }
-    .stMetric .st-ae { /* Ajusta o alinhamento do valor */
+    .stMetric .st-ae {
         justify-content: center;
     }
 </style>
 """,
     unsafe_allow_html=True,
 )
+
+
+# --- FUNÇÕES AUXILIARES ---
+def format_currency(valor: float) -> str:
+    """Formata valores monetários no padrão brasileiro."""
+    return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def format_int(valor: float) -> str:
+    """Formata inteiros com separador de milhar."""
+    return f"{int(valor):,}".replace(",", ".")
 
 
 # --- FUNÇÃO PARA BUSCAR OS DADOS (cacheada para performance) ---
@@ -76,10 +88,10 @@ def buscar_todos_os_dados():
     
     # --- PRÉ-PROCESSAMENTO DOS DADOS ---
     # Convertendo colunas importantes para os tipos corretos
-    df['dt_cadastro_integrante'] = pd.to_datetime(df['dt_cadastro_integrante'], errors='coerce')
+    df['dt_cadastro_fundo'] = pd.to_datetime(df['dt_cadastro_fundo'], errors='coerce')
     df['vl_plano'] = pd.to_numeric(df['vl_plano'], errors='coerce').fillna(0)
     # Cria uma coluna 'periodo' (Ano-Mês) para facilitar agregações mensais
-    df['periodo'] = df['dt_cadastro_integrante'].dt.to_period('M').astype(str)
+    df['periodo'] = df['dt_cadastro_fundo'].dt.to_period('M').astype(str)
 
     return df
 
@@ -104,7 +116,7 @@ if df_original is not None and not df_original.empty:
     tipo_cliente_selecionado = st.sidebar.selectbox("Tipo de Cliente", options=lista_tipos_cliente)
 
     # Filtro de Ano
-    anos_disponiveis = ['Todos'] + sorted(df_original['dt_cadastro_integrante'].dt.year.dropna().unique())
+    anos_disponiveis = ['Todos'] + sorted(df_original['dt_cadastro_fundo'].dt.year.dropna().unique())
     ano_selecionado = st.sidebar.selectbox("Ano", options=anos_disponiveis)
 
     # Aplica filtros iniciais
@@ -114,13 +126,13 @@ if df_original is not None and not df_original.empty:
     if tipo_cliente_selecionado != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['tipo_cliente'] == tipo_cliente_selecionado]
     if ano_selecionado != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['dt_cadastro_integrante'].dt.year == ano_selecionado]
+        df_filtrado = df_filtrado[df_filtrado['dt_cadastro_fundo'].dt.year == ano_selecionado]
 
     # Filtro de Mês (dependente do Ano selecionado)
-    meses_disponiveis = ['Todos'] + sorted(df_filtrado['dt_cadastro_integrante'].dt.month.dropna().unique())
+    meses_disponiveis = ['Todos'] + sorted(df_filtrado['dt_cadastro_fundo'].dt.month.dropna().unique())
     mes_selecionado = st.sidebar.selectbox("Mês", options=meses_disponiveis)
     if mes_selecionado != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['dt_cadastro_integrante'].dt.month == mes_selecionado]
+        df_filtrado = df_filtrado[df_filtrado['dt_cadastro_fundo'].dt.month == mes_selecionado]
 
     # --- EXIBIÇÃO DO DASHBOARD PRINCIPAL ---
 
@@ -135,6 +147,11 @@ if df_original is not None and not df_original.empty:
     vendas_mensais_series = df_filtrado.groupby('periodo')['vl_plano'].sum().sort_index()
     vendas_mensais_series.index = pd.to_datetime(vendas_mensais_series.index)
     vendas_mensais_series = vendas_mensais_series.sort_index()
+
+    vvr_periodo_atual = vendas_mensais_series.iloc[-1] if len(vendas_mensais_series) > 0 else 0
+    vvr_periodo_anterior = vendas_mensais_series.iloc[-2] if len(vendas_mensais_series) > 1 else 0
+    dif_vvr = vvr_periodo_atual - vvr_periodo_anterior
+
     if len(vendas_mensais_series) >= 2:
         x = np.arange(len(vendas_mensais_series))
         y = vendas_mensais_series.values
@@ -143,27 +160,17 @@ if df_original is not None and not df_original.empty:
     else:
         previsao_proximo_mes = float(vendas_mensais_series.iloc[-1]) if len(vendas_mensais_series) > 0 else 0.0
 
-    col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric(
-        label="VVR Total (R$)",
-        value=f"{total_vvr:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-    )
-    col2.metric(
-        label="Adesões Vendas",
-        value=f"{adesoes_vendas:,}".replace(",", "."),
-    )
-    col3.metric(
-        label="Adesões Pós-Vendas",
-        value=f"{adesoes_pos_vendas:,}".replace(",", "."),
-    )
-    col4.metric(
-        label="Ticket Médio (R$)",
-        value=f"{ticket_medio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-    )
-    col5.metric(
-        label="Prev. Próx. Mês (R$)",
-        value=f"{previsao_proximo_mes:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-    )
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("VVR Período (R$)", format_currency(vvr_periodo_atual))
+    col2.metric("VVR Período Anterior (R$)", format_currency(vvr_periodo_anterior))
+    col3.metric("Diferença (R$)", format_currency(dif_vvr))
+    col4.metric("Prev. Próx. Mês (R$)", format_currency(previsao_proximo_mes))
+
+    col5, col6, col7, col8 = st.columns(4)
+    col5.metric("Adesões Vendas", format_int(adesoes_vendas))
+    col6.metric("Adesões Pós-Vendas", format_int(adesoes_pos_vendas))
+    col7.metric("Ticket Médio (R$)", format_currency(ticket_medio))
+    col8.metric("Total de Adesões", format_int(num_adesoes))
 
     st.markdown("---")
 
@@ -174,6 +181,7 @@ if df_original is not None and not df_original.empty:
         st.subheader("Volume de Vendas Mensal (R$)")
         vendas_mensais_df = vendas_mensais_series.reset_index()
         vendas_mensais_df.columns = ["periodo", "vl_plano"]
+        meta_mensal = vendas_mensais_df["vl_plano"].mean() * 1.1 if not vendas_mensais_df.empty else 0
         fig_mensal = px.line(
             vendas_mensais_df,
             x="periodo",
@@ -181,12 +189,18 @@ if df_original is not None and not df_original.empty:
             markers=True,
             labels={"periodo": "Período", "vl_plano": "Valor"},
         )
+        fig_mensal.add_scatter(
+            x=vendas_mensais_df["periodo"],
+            y=[meta_mensal] * len(vendas_mensais_df),
+            mode="lines",
+            name="Meta",
+        )
         st.plotly_chart(fig_mensal, use_container_width=True)
 
     with col_graf2:
         st.subheader("Volume de Vendas Anual (R$)")
         vendas_anuais = (
-            df_filtrado.groupby(df_filtrado['dt_cadastro_integrante'].dt.year)['vl_plano']
+            df_filtrado.groupby(df_filtrado['dt_cadastro_fundo'].dt.year)['vl_plano']
             .sum()
             .reset_index(name='vl_plano')
         )
@@ -199,23 +213,40 @@ if df_original is not None and not df_original.empty:
         )
         st.plotly_chart(fig_anual, use_container_width=True)
 
-    st.markdown("---")
+    col_graf3, col_graf4 = st.columns(2)
 
-    st.subheader("Adesões por Mês (Vendas vs Pós-Vendas)")
-    adesoes_tipo = (
-        df_filtrado.groupby(['periodo', 'tipo_cliente'])['id_fundo']
-        .count()
-        .reset_index(name='adesoes')
-    )
-    fig_adesoes = px.bar(
-        adesoes_tipo,
-        x='periodo',
-        y='adesoes',
-        color='tipo_cliente',
-        barmode='stack',
-        labels={'periodo': 'Período', 'adesoes': 'Adesões', 'tipo_cliente': 'Tipo'},
-    )
-    st.plotly_chart(fig_adesoes, use_container_width=True)
+    with col_graf3:
+        st.subheader("VVR por Tipo de Cliente")
+        vvr_tipo = (
+            df_filtrado.groupby(['periodo', 'tipo_cliente'])['vl_plano']
+            .sum()
+            .reset_index()
+        )
+        fig_vvr_tipo = px.bar(
+            vvr_tipo,
+            x='periodo',
+            y='vl_plano',
+            color='tipo_cliente',
+            barmode='stack',
+            labels={'periodo': 'Período', 'vl_plano': 'VVR', 'tipo_cliente': 'Tipo'},
+        )
+        st.plotly_chart(fig_vvr_tipo, use_container_width=True)
+
+    with col_graf4:
+        st.subheader("Mapa de Vendas (Ano x Mês)")
+        heatmap_df = (
+            df_filtrado
+            .pivot_table(index=df_filtrado['dt_cadastro_fundo'].dt.year,
+                        columns=df_filtrado['dt_cadastro_fundo'].dt.month,
+                        values='vl_plano', aggfunc='sum')
+            .fillna(0)
+        )
+        fig_heatmap = px.imshow(
+            heatmap_df,
+            labels={'x': 'Mês', 'y': 'Ano', 'color': 'VVR'},
+            aspect="auto",
+        )
+        st.plotly_chart(fig_heatmap, use_container_width=True)
 
     st.markdown("---")
 
