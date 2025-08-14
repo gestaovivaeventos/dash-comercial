@@ -14,7 +14,7 @@ st.set_page_config(layout="wide", page_title="Dashboard de Vendas")
 # o dashboard super rápido. O cache é limpo quando a página é recarregada (F5).
 @st.cache_data
 def buscar_todos_os_dados():
-    API_URL = "https://api-fundos-comercial.vercel.app/dados" # URL da sua API
+    API_URL = "https://api-adesoes-comercial.vercel.app/dados" # URL da sua API
     page_size = 5000
     offset = 0
     all_data = []
