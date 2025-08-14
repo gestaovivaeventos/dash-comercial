@@ -29,7 +29,7 @@ st.markdown("""
 # --- FUNÇÃO PARA BUSCAR OS DADOS (cacheada para performance) ---
 @st.cache_data(ttl="1h") # Adicionamos um TTL (Time To Live) para o cache. Ele será invalidado a cada 1 hora.
 def buscar_todos_os_dados():
-    API_URL = "https://api-fundos-comercial.vercel.app/dados" # URL da sua API
+    API_URL = "https://api-adesoes-comercial.vercel.app/dados" # URL da sua API
     page_size = 5000
     offset = 0
     all_data = []
