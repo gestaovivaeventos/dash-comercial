@@ -104,7 +104,7 @@ if df_original is not None and not df_original.empty:
     tipo_cliente_selecionado = st.sidebar.selectbox("Tipo de Cliente", options=lista_tipos_cliente)
 
     # Filtro de Ano
-    anos_disponiveis = ['Todos'] + sorted(df_original['dt_cadastro_fundo'].dt.year.dropna().unique())
+    anos_disponiveis = ['Todos'] + sorted(df_original['dt_cadastro_integrante'].dt.year.dropna().unique())
     ano_selecionado = st.sidebar.selectbox("Ano", options=anos_disponiveis)
 
     # Aplica filtros iniciais
@@ -114,13 +114,13 @@ if df_original is not None and not df_original.empty:
     if tipo_cliente_selecionado != 'Todos':
         df_filtrado = df_filtrado[df_filtrado['tipo_cliente'] == tipo_cliente_selecionado]
     if ano_selecionado != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['dt_cadastro_fundo'].dt.year == ano_selecionado]
+        df_filtrado = df_filtrado[df_filtrado['dt_cadastro_integrante'].dt.year == ano_selecionado]
 
     # Filtro de Mês (dependente do Ano selecionado)
-    meses_disponiveis = ['Todos'] + sorted(df_filtrado['dt_cadastro_fundo'].dt.month.dropna().unique())
+    meses_disponiveis = ['Todos'] + sorted(df_filtrado['dt_cadastro_integrante'].dt.month.dropna().unique())
     mes_selecionado = st.sidebar.selectbox("Mês", options=meses_disponiveis)
     if mes_selecionado != 'Todos':
-        df_filtrado = df_filtrado[df_filtrado['dt_cadastro_fundo'].dt.month == mes_selecionado]
+        df_filtrado = df_filtrado[df_filtrado['dt_cadastro_integrante'].dt.month == mes_selecionado]
 
     # --- EXIBIÇÃO DO DASHBOARD PRINCIPAL ---
 
@@ -186,7 +186,7 @@ if df_original is not None and not df_original.empty:
     with col_graf2:
         st.subheader("Volume de Vendas Anual (R$)")
         vendas_anuais = (
-            df_filtrado.groupby(df_filtrado['dt_cadastro_fundo'].dt.year)['vl_plano']
+            df_filtrado.groupby(df_filtrado['dt_cadastro_integrante'].dt.year)['vl_plano']
             .sum()
             .reset_index(name='vl_plano')
         )
