@@ -43,8 +43,8 @@ if df_original is not None and not df_original.empty:
     ontem = pd.to_datetime(date.today() - timedelta(days=1))
     
     # Filtra o DataFrame para obter apenas os dados de hoje e ontem
-    df_hoje = df_original[df_original['dt_cadastro_fundo'].dt.date == hoje.date()]
-    df_ontem = df_original[df_original['dt_cadastro_fundo'].dt.date == ontem.date()]
+    df_hoje = df_original[df_original['dt_cadastro_integrante'].dt.date == hoje.date()]
+    df_ontem = df_original[df_original['dt_cadastro_integrante'].dt.date == ontem.date()]
 
     # Pega a lista de todas as unidades que tiveram vendas nos dois dias
     unidades = sorted(pd.concat([df_hoje['nm_unidade'], df_ontem['nm_unidade']]).dropna().unique())
