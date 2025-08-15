@@ -114,7 +114,7 @@ while True:
         
         # --- CÁLCULO DA VELOCIDADE DINÂMICA ---
         # A velocidade se adapta à quantidade de franquias
-        velocidade_base = 60 # Ajuste para mais ou menos para controlar a velocidade
+        velocidade_base = 30 # Ajuste para mais ou menos para controlar a velocidade
         duracao_animacao = max(20, len(texto_ticker) / velocidade_base)
         
         # --- ATUALIZA O TICKER NA TELA ---
