@@ -27,7 +27,7 @@ st.markdown("""
 .ticker-move {
     display: inline-block;
     white-space: nowrap;
-    animation: ticker 25s linear infinite;
+    animation: ticker 200s linear infinite;
     font-size: 20px;
     color: #00ff41;
     font-family: 'Courier New', Courier, monospace;
